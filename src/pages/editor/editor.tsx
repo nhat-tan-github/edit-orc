@@ -32,7 +32,15 @@ const stateManager = new StateManager({
         segments: 5,
     },
 });
+// Dữ liệu phụ đề
+const subtitles = [
+    { id: 0, original: "Nội dung gốc 0", translated: "Nội dung dịch 0" },
+    { id: 1, original: "Nội dung gốc 1", translated: "Nội dung dịch 1" },
+    { id: 2, original: "Nội dung gốc 2", translated: "Nội dung dịch 2" },
+    { id: 3, original: "Nội dung gốc 3", translated: "Nội dung dịch 3" },
 
+  ];
+  
 const App = () => {
     const timelinePanelRef = useRef<ImperativePanelHandle>(null);
     const { timeline, playerRef } = useStore();
@@ -77,7 +85,6 @@ const App = () => {
         <ResizablePanelGroup direction="horizontal" style={{ height: "100vh" }}>
             {/* Left panel: chứa Navbar, MenuList, MenuItem, ControlList, ControlItem */}
             <ResizablePanel defaultSize={3} className="overflow-auto">
-                <Navbar />
                 <MenuList />
                 <MenuItem />
                 <ControlList />
@@ -87,8 +94,7 @@ const App = () => {
             {/* Panel giữa: hiển thị phụ đề sử dụng SubtitleDisplay */}
             <ResizablePanel defaultSize={20} className="overflow-auto">
                 <SubtitleDisplay
-                    original="Phụ đề ngôn ngữ gốc (mờ)"
-                    translated="Phụ đề sau khi dịch (rõ)"
+                    subtitles={subtitles}              
                 />
             </ResizablePanel>
             <ResizableHandle />
@@ -96,7 +102,8 @@ const App = () => {
             <ResizablePanel defaultSize={50} className="overflow-auto">
                 <ResizablePanelGroup direction="vertical" style={{ height: "100%" }}>
                     <ResizablePanel defaultSize={70} className="relative">
-                        <Scene stateManager={stateManager} />
+                    <Navbar />
+                    <Scene stateManager={stateManager} />
                     </ResizablePanel>
                     <ResizableHandle />
                     <ResizablePanel
