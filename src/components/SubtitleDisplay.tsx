@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import * as ScrollArea from "@radix-ui/react-scroll-area";
 
 interface Subtitle {
   id: number;
@@ -7,8 +8,8 @@ interface Subtitle {
 }
 
 interface SubtitleDisplayProps {
-  subtitles: Subtitle[]; // Array of subtitle objects
-  maxSceneTime: number;  // Max duration of the scene (in seconds)
+  subtitles: Subtitle[];
+  maxSceneTime: number;
 }
 
 interface ContainerCheckboxState {
@@ -23,16 +24,11 @@ const formatTime = (seconds: number): string => {
   return `${min}:${sec < 10 ? "0" : ""}${sec}s`;
 };
 
-const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
-  subtitles,
-  maxSceneTime,
-}) => {
-  // Global state for header checkboxes
+const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles, maxSceneTime }) => {
   const [allLt1State, setAllLt1State] = useState<boolean>(false);
   const [allLt2State, setAllLt2State] = useState<boolean>(false);
   const [allLt3State, setAllLt3State] = useState<boolean>(false);
 
-  // Initialize container states from subtitles
   const [containerStates, setContainerStates] = useState<Record<number, ContainerCheckboxState>>(
     () =>
       subtitles.reduce((acc, cur) => {
@@ -41,15 +37,12 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
       }, {} as Record<number, ContainerCheckboxState>)
   );
 
-  // Dummy event handlers for other UI elements
   const undoAction = () => console.log("Undo action");
   const deleteLine = (id: number) => console.log("Delete line", id);
   const rerollLine = (id: number) => console.log("Reroll line", id);
   const changeDrawTimeline = (e: React.ChangeEvent<HTMLSelectElement>) =>
     console.log("Changed timeline segment:", e.target.value);
 
-  // Header checkbox onChange handlers.
-  // When clicked, update global state and update ALL container checkboxes of that type.
   const handleAllLt1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     setAllLt1State(checked);
@@ -86,8 +79,6 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
     });
   };
 
-  // Container checkbox handlers.
-  // When a container checkbox is clicked, update only that container's state.
   const handleContainerLt1Change = (id: number, checked: boolean) => {
     setContainerStates(prev => ({
       ...prev,
@@ -109,24 +100,20 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
     }));
   };
 
-  // Shared style for right-side checkbox groups.
-  // This style is used both in the control header and in each subtitle container.
+  // Style dùng chung
   const rightGroupStyle: React.CSSProperties = {
     marginLeft: "auto",
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    flexShrink: 0,  // do not let it shrink
-  };
-  
-  // In our case the checkboxes in the control header need extra right margin
-  // to align with those in each container (which are inside a upline-line)
-  const rightGroupStyleControl: React.CSSProperties = {
-    ...rightGroupStyle,
-    marginRight: "12px",  // adjust this value as needed for perfect alignment
+    flexShrink: 0,
   };
 
-  // Other inline style objects
+  const rightGroupStyleControl: React.CSSProperties = {
+    ...rightGroupStyle,
+    marginRight: "12px",
+  };
+
   const containerStyle: React.CSSProperties = {
     backgroundColor: "rgba(229, 236, 255, 0.1)",
     padding: "12px",
@@ -135,11 +122,14 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
   };
 
+  // Header của phần edit, được đặt sticky để luôn hiển thị
   const controlHeaderStyle: React.CSSProperties = {
-    marginBottom: "16px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    padding: "8px",
+    backgroundColor: "#1a1a1a",
+    zIndex: 10,
   };
 
   const leftControlStyle: React.CSSProperties = {
@@ -147,7 +137,7 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
     alignItems: "center",
     gap: "8px",
     flexShrink: 1,
-    overflow: "hidden",  // hide overflow if the container shrinks
+    overflow: "hidden",
     whiteSpace: "nowrap",
   };
 
@@ -177,7 +167,6 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
     color: "#fff",
   };
 
-  // Reusable checkbox group component for header (global control)
   const CheckboxGroup = () => (
     <div style={rightGroupStyle}>
       <input
@@ -206,10 +195,9 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
 
   return (
     <div id="string_edit" className="string-edit-layout" data-delogo="false">
-      <div id="string_edit_div">
-        {/* Control Header */}
-        <div id="string_edit_control" style={controlHeaderStyle}>
-          <div id="chunks_left" style={leftControlStyle}>
+      {/* Phần header cố định */}
+      <div id="string_edit_control" style={controlHeaderStyle}>
+        <div id="chunks_left" style={leftControlStyle}>
             <svg
               style={{ transform: "rotateZ(270deg)", color: "blueviolet", fontSize: "20px" }}
               width="1em"
@@ -236,23 +224,23 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
                 />
               </g>
             </svg>
-            <select
-              title="Chia bản dịch thành nhiều đoạn nhỏ giảm thiểu hiện tượng giật lag trong khi chỉnh sửa!"
-              onChange={changeDrawTimeline}
-              id="chunk"
-              style={{
-                padding: "4px 8px",
-                borderRadius: "4px",
-                border: "1px solid #ccc",
-                color: "#fff",
-                backgroundColor: "transparent",
-              }}
-            >
-              <option value={`0-${maxSceneTime}`}>
-                Toàn bộ: 0:00s - {formatTime(maxSceneTime)}
-              </option>
-            </select>
-            <div
+          <select
+            title="Chia bản dịch thành nhiều đoạn nhỏ giảm thiểu hiện tượng giật lag trong khi chỉnh sửa!"
+            onChange={changeDrawTimeline}
+            id="chunk"
+            style={{
+              padding: "4px 8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              color: "#fff",
+              backgroundColor: "transparent",
+            }}
+          >
+            <option value={`0-${maxSceneTime}`}>
+              Toàn bộ: 0:00s - {formatTime(maxSceneTime)}
+            </option>
+          </select>
+          <div
               id="pre_button"
               className="undo"
               onClick={undoAction}
@@ -296,108 +284,106 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({
                 />
               </svg>
             </div>
-            <div
-              id="project_name"
-              style={{ display: "flex", alignItems: "center", gap: "4px" }}
-            >
-              <span>|</span>
-              <span id="project_name_span"></span>
-            </div>
-          </div>
-          {/* Right-side checkboxes in control header */}
-          <div id="chunks_right" style={rightGroupStyleControl}>
-            <CheckboxGroup />
-          </div>
         </div>
-
-        {/* Render multiple subtitle containers */}
-        {subtitles.map((subtitle) => (
-          <div
-            key={subtitle.id}
-            id={`container_${subtitle.id}`}
-            className="string_container"
-            name={`text_${subtitle.id}`}
-            style={containerStyle}
-          >
-            <div className="upline line" style={headerStyle}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div
-                  id={`upline_${subtitle.id}`}
-                  name={`text_${subtitle.id}`}
-                  onDoubleClick={() => console.log("Edit main string", subtitle.id)}
-                  className="l1 src-string line2"
-                  style={mainTextStyle}
-                >
-                  {subtitle.original}
-                </div>
-                <div
-                  id={`delete_${subtitle.id}`}
-                  onClick={() => deleteLine(subtitle.id)}
-                  className="delete_line"
-                  name={`text_${subtitle.id}`}
-                  style={{ cursor: "pointer" }}
-                >
-                  <i id={`icon_${subtitle.id}`} className="fa-solid fa-trash-can" />
-                </div>
-                <div
-                  id={`reroll_${subtitle.id}`}
-                  onClick={() => rerollLine(subtitle.id)}
-                  name={`text_${subtitle.id}`}
-                  className="rerool_sound"
-                  style={{ cursor: "pointer" }}
-                >
-                  <i className="fa-solid fa-rotate-right" />
-                </div>
-              </div>
-              {/* Right-side checkbox group in container header using container state */}
-              <div style={rightGroupStyle}>
-                <input
-                  type="checkbox"
-                  checked={containerStates[subtitle.id]?.lt1 || false}
-                  onChange={e =>
-                    handleContainerLt1Change(subtitle.id, e.target.checked)
-                  }
-                  className="long_tieng"
-                  style={{ cursor: "pointer" }}
-                />
-                <input
-                  type="checkbox"
-                  checked={containerStates[subtitle.id]?.lt2 || false}
-                  onChange={e =>
-                    handleContainerLt2Change(subtitle.id, e.target.checked)
-                  }
-                  className="long_tieng_2"
-                  style={{ cursor: "pointer" }}
-                />
-                <input
-                  type="checkbox"
-                  checked={containerStates[subtitle.id]?.lt3 || false}
-                  onChange={e =>
-                    handleContainerLt3Change(subtitle.id, e.target.checked)
-                  }
-                  className="long_tieng_3"
-                  style={{ cursor: "pointer" }}
-                />
-              </div>
-            </div>
-            <div className="downline line notranslate" style={{ paddingTop: "4px" }}>
-              <div className="line2">
-                <textarea
-                  id={`textbox_${subtitle.id}`}
-                  name={`text_${subtitle.id}`}
-                  onInput={() => {}}
-                  className="json active_right"
-                  onClick={() => {}}
-                  onChange={() => {}}
-                  style={textAreaStyle}
-                >
-                  {subtitle.translated}
-                </textarea>
-              </div>
-            </div>
-          </div>
-        ))}
+        <div id="chunks_right" style={rightGroupStyleControl}>
+          <CheckboxGroup />
+        </div>
       </div>
+
+      {/* ScrollArea chỉ chứa danh sách phụ đề, không bao gồm header */}
+      <ScrollArea.Root
+        type="always"
+        className="SubtitleScrollRoot"
+        style={{ height: "calc(100vh - 60px)", width: "100%" }}
+      >
+        <ScrollArea.Viewport
+          className="SubtitleScrollViewport"
+          style={{ width: "100%", paddingRight: "8px", overflowY: "auto" }}
+        >
+          {subtitles.map((subtitle) => (
+            <div
+              key={subtitle.id}
+              id={`container_${subtitle.id}`}
+              className="string_container"
+              name={`text_${subtitle.id}`}
+              style={containerStyle}
+            >
+              <div className="upline line" style={headerStyle}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div
+                    id={`upline_${subtitle.id}`}
+                    name={`text_${subtitle.id}`}
+                    onDoubleClick={() => console.log("Edit main string", subtitle.id)}
+                    className="l1 src-string line2"
+                    style={mainTextStyle}
+                  >
+                    {subtitle.original}
+                  </div>
+                  <div
+                    id={`delete_${subtitle.id}`}
+                    onClick={() => deleteLine(subtitle.id)}
+                    className="delete_line"
+                    name={`text_${subtitle.id}`}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <i id={`icon_${subtitle.id}`} className="fa-solid fa-trash-can" />
+                  </div>
+                  <div
+                    id={`reroll_${subtitle.id}`}
+                    onClick={() => rerollLine(subtitle.id)}
+                    name={`text_${subtitle.id}`}
+                    className="rerool_sound"
+                    style={{ cursor: "pointer" }}
+                  >
+                    <i className="fa-solid fa-rotate-right" />
+                  </div>
+                </div>
+                <div style={rightGroupStyle}>
+                  <input
+                    type="checkbox"
+                    checked={containerStates[subtitle.id]?.lt1 || false}
+                    onChange={e => handleContainerLt1Change(subtitle.id, e.target.checked)}
+                    className="long_tieng"
+                    style={{ cursor: "pointer" }}
+                  />
+                  <input
+                    type="checkbox"
+                    checked={containerStates[subtitle.id]?.lt2 || false}
+                    onChange={e => handleContainerLt2Change(subtitle.id, e.target.checked)}
+                    className="long_tieng_2"
+                    style={{ cursor: "pointer" }}
+                  />
+                  <input
+                    type="checkbox"
+                    checked={containerStates[subtitle.id]?.lt3 || false}
+                    onChange={e => handleContainerLt3Change(subtitle.id, e.target.checked)}
+                    className="long_tieng_3"
+                    style={{ cursor: "pointer" }}
+                  />
+                </div>
+              </div>
+              <div className="downline line notranslate" style={{ paddingTop: "4px" }}>
+                <div className="line2">
+                  <textarea
+                    id={`textbox_${subtitle.id}`}
+                    name={`text_${subtitle.id}`}
+                    onInput={() => {}}
+                    className="json active_right"
+                    onClick={() => {}}
+                    onChange={() => {}}
+                    style={textAreaStyle}
+                  >
+                    {subtitle.translated}
+                  </textarea>
+                </div>
+              </div>
+            </div>
+          ))}
+        </ScrollArea.Viewport>
+        <ScrollArea.Scrollbar orientation="vertical" className="SubtitleScrollScrollbar">
+          <ScrollArea.Thumb className="SubtitleScrollThumb" />
+        </ScrollArea.Scrollbar>
+      </ScrollArea.Root>
     </div>
   );
 };
