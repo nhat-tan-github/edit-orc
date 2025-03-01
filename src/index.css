@@ -231,6 +231,50 @@ input[type="number"]::-webkit-outer-spin-button {
   min-height: 44px;
 }
 
+/* Chỉ apply cho scroll phụ đề */
+.SubtitleScrollRoot {
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: transparent;
+}
+
+.SubtitleScrollViewport {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.SubtitleScrollScrollbar {
+  display: flex;
+  user-select: none;
+  touch-action: none;
+  padding: 2px;
+  background: transparent;
+  transition: background 0.2s ease-out;
+}
+
+.SubtitleScrollScrollbar:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.SubtitleScrollScrollbar[data-orientation="vertical"] {
+  width: 10px;
+}
+
+.SubtitleScrollThumb {
+  flex: 1;
+  background: #464646;
+  border-radius: 10px;
+  position: relative;
+}
+
+.SubtitleScrollThumb:hover {
+  flex: 1;
+  background: #888;
+  border-radius: 10px;
+  position: relative;
+}
+
 /* CROP STYLES */
 
 .crop {
@@ -354,3 +398,4 @@ input[type="number"]::-webkit-outer-spin-button {
   top: 50%;
   transform: translate(0, -50%);
 }
+
