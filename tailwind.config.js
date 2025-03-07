@@ -6,7 +6,9 @@ const {
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
-  content: ["./src/**/*.{ts,tsx}"],
+  content: [
+    "./src/**/*.{js,jsx,ts,tsx}",
+  ],
   fontFamily: {
     sans: ['"Geist Variable"', ...defaultTheme.fontFamily.sans],
   },
@@ -57,6 +59,28 @@ export default {
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
       },
+      keyframes: {
+        moveInCircle: {
+          '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
+          '50%': { transform: 'translate(50%, 50%) rotate(180deg)' },
+          '100%': { transform: 'translate(-50%, -50%) rotate(360deg)' }
+        },
+        moveVertical: {
+          '0%': { transform: 'translate(-50%, -30%)' },
+          '50%': { transform: 'translate(50%, 30%)' },
+          '100%': { transform: 'translate(-50%, -30%)' }
+        },
+        moveHorizontal: {
+          '0%': { transform: 'translate(-30%, -30%)' },
+          '50%': { transform: 'translate(30%, 30%)' },
+          '100%': { transform: 'translate(-30%, -30%)' }
+        }
+      },
+      animation: {
+        'move-in-circle': 'moveInCircle 20s infinite',
+        'move-vertical': 'moveVertical 30s infinite',
+        'move-horizontal': 'moveHorizontal 40s infinite'
+      }
     },
   },
   plugins: [addVariablesForColors, require("tailwindcss-animate")],
