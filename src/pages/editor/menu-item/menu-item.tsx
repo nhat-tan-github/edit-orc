@@ -7,11 +7,13 @@ import { Audios } from "./audios";
 import { Images } from "./images";
 import { Videos } from "./videos";
 import { Texts } from "./texts";
+import {Dubbing} from "@/pages/editor/menu-item/Dubbing.tsx";
+import {Render} from "@/pages/editor/menu-item/Render.tsx";
 
 // Các component placeholder cho các menu item mới
 const Playlist = () => <div className="p-4">Playlist Component</div>;
-const Dubbing = () => <div className="p-4">Dubbing Component</div>;
-const Render = () => <div className="p-4">Render Component</div>;
+// const Dubbing = () => <div className="p-4">Dubbing Component</div>;
+// const Render = () => <div className="p-4">Render Component</div>;
 const Logo = () => <div className="p-4">Logo Component</div>;
 const SettingsComponent = () => <div className="p-4">Settings Component</div>;
 const Subtitle = () => <div className="p-4">Subtitle Component</div>;
