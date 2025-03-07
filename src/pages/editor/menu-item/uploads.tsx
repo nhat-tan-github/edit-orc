@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { UploadIcon } from "lucide-react";
@@ -7,9 +7,12 @@ import { createUploadsDetails } from "@/utils/upload"; // hàm tạo presigned U
 import { dispatch } from "@designcombo/events";
 import { ADD_VIDEO } from "@designcombo/state";
 import {FormUpload} from "./form-upload";
+import { OptionUpload } from "./upload-option";
+import { ButtonEffect } from "@/components/ButtonEffect";
 
 export const Uploads = () => {
   const inputFileRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const onInputFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -18,6 +21,7 @@ export const Uploads = () => {
     if (!files || files.length === 0) return;
     const file = files[0];
 
+    setIsUploading(true);
     try {
       // Tạo thông tin upload (presigned URL, url, name, id)
       const uploadDetails = await createUploadsDetails(file.name);
@@ -39,6 +43,8 @@ export const Uploads = () => {
       }
     } catch (error) {
       console.error("Upload error:", error);
+    } finally {
+      setIsUploading(false);
     }
     // Reset input
     e.target.value = "";
@@ -61,16 +67,28 @@ export const Uploads = () => {
         {/* <AddOption /> */}
         <Tabs defaultValue="projects" className="w-full">
           <TabsContent value="projects">
-            <FormUpload />
-            {/* <Button
-              onClick={() => {
-                inputFileRef.current?.click();
-              }}
-              className="flex w-full gap-2"
-              variant="secondary"
-            >
-              <UploadIcon size={16} /> Upload
-            </Button> */}
+            <FormUpload />  
+            <div className="relative">
+              <OptionUpload />
+              <div className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg backdrop-filter rounded-lg shadow-lg p-4">
+                <div className="flex justify-end gap-2">
+                  <ButtonEffect
+                    type="cancel"
+                    onClick={() => {
+                      // Xử lý huỷ
+                    }}
+                    disabled={isUploading}
+                  />
+                  <ButtonEffect
+                    type="upload"
+                    onClick={() => {
+                      inputFileRef.current?.click();
+                    }}
+                    disabled={isUploading}
+                  />
+                </div>
+              </div>
+            </div>
           </TabsContent>
           <TabsContent value="workspace">
             {/* <Button
