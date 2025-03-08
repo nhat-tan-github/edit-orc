@@ -7,8 +7,8 @@ import { Audios } from "./audios";
 import { Images } from "./images";
 import { Videos } from "./videos";
 import { Texts } from "./texts";
-import {Dubbing} from "@/pages/editor/menu-item/Dubbing.tsx";
-import {Render} from "@/pages/editor/menu-item/Render.tsx";
+import {Dubbing} from "./dubbing.tsx";
+import {Render} from "./render.tsx";
 
 // Các component placeholder cho các menu item mới
 const Playlist = () => <div className="p-4">Playlist Component</div>;
