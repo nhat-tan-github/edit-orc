@@ -9,6 +9,7 @@ interface RadioButtonEffectProps {
   checked?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
+  fontSize?: string;
 }
 
 export const RadioButtonEffect: React.FC<RadioButtonEffectProps> = ({
@@ -18,7 +19,8 @@ export const RadioButtonEffect: React.FC<RadioButtonEffectProps> = ({
   label,
   checked,
   onChange,
-  disabled
+  disabled,
+  fontSize = '14px'
 }) => {
   const radioRef = useRef<HTMLInputElement>(null);
   const rectsRef = useRef<SVGRectElement[]>([]);
@@ -95,6 +97,7 @@ export const RadioButtonEffect: React.FC<RadioButtonEffectProps> = ({
           ${checked ? 'before:shadow-[0_0_12px_rgba(136,61,242,0.8)] before:bg-[#2a2b32] opacity-100' : 'opacity-90'}
           ${disabled ? 'opacity-30 cursor-not-allowed hover:before:shadow-none' : ''}
         `}
+        style={{ fontSize }}
       >
         <span className="z-[1] transition-colors duration-300 whitespace-nowrap text-white">{label}</span>
         <svg
