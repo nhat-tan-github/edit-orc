@@ -7,31 +7,38 @@ import { Audios } from "./audios";
 import { Images } from "./images";
 import { Videos } from "./videos";
 import { Texts } from "./texts";
-import {Dubbing} from "./dubbing.tsx";
-import {Render} from "./render.tsx";
+import { Dubbing } from "./dubbing";
+import { Render } from "./render";
 
-// Các component placeholder cho các menu item mới
-const Playlist = () => <div className="p-4">Playlist Component</div>;
-// const Dubbing = () => <div className="p-4">Dubbing Component</div>;
-// const Render = () => <div className="p-4">Render Component</div>;
-const Logo = () => <div className="p-4">Logo Component</div>;
-const SettingsComponent = () => <div className="p-4">Settings Component</div>;
-const Subtitle = () => <div className="p-4">Subtitle Component</div>;
-const UserComponent = () => <div className="p-4">User Component</div>;
+interface ContainerProps {
+  children: React.ReactNode;
+}
 
-// Container mặc định cho các item không đặc biệt
-const Container = ({ children }: { children: React.ReactNode }) => {
-  const { showMenuItem, setShowMenuItem } = useLayoutStore();
+const CONTAINER_BASE_STYLES = "modal-container absolute bg-background/95 backdrop-blur-lg backdrop-filter rounded-lg shadow-lg transition-all duration-150 opacity-100 scale-100";
+
+const Container: React.FC<ContainerProps> = ({ children }) => {
+  const { showMenuItem, setShowMenuItem, activeMenuItem } = useLayoutStore();
+  
   return (
     <div
       style={{
         left: showMenuItem ? "0" : "-100%",
         transition: "left 0.25s ease-in-out",
         zIndex: 200,
+        display: activeMenuItem ? "block" : "none",
+        marginLeft: "3.5rem"
       }}
-      className="absolute top-1/2 mt-6 flex h-[calc(100%-32px-64px)] w-[340px] -translate-y-1/2 rounded-lg shadow-lg"
+      className={`${CONTAINER_BASE_STYLES} top-1/2 mt-6 flex h-[calc(100%-32px-64px)] w-[350px] -translate-y-1/2`}
     >
-      <div className="w-[74px]"></div>
+      <style>
+        {`
+          .modal-container.closing {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95);
+          }
+        `}
+      </style>
+      <div className="w-[74px]" />
       <div className="relative flex flex-1 bg-background/80 backdrop-blur-lg backdrop-filter">
         <Button
           variant="ghost"
@@ -47,91 +54,84 @@ const Container = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// Container riêng cho item "uploads"
-const UploadsContainer = ({ children }: { children: React.ReactNode }) => {
+const CenteredContainer: React.FC<ContainerProps & { width: string; height: string }> = ({ 
+  children, 
+  width, 
+  height 
+}) => {
+  const { activeMenuItem } = useLayoutStore();
+  
   return (
     <div
-      className="absolute bg-background/95 backdrop-blur-lg backdrop-filter rounded-lg shadow-lg"
+      className={CONTAINER_BASE_STYLES}
       style={{
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        width: "60vw", // 70% chiều ngang
-        height: "70vh", // 50% chiều cao
+        width,
+        height,
         zIndex: 200,
+        display: activeMenuItem ? "block" : "none"
       }}
     >
+      <style>
+        {`
+          .modal-container.closing {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95);
+          }
+        `}
+      </style>
       {children}
     </div>
   );
 };
 
-// Container riêng cho item "dubbing" và "render"
-const DubbingRenderContainer = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <div
-      className="absolute bg-background/90 backdrop-blur-lg backdrop-filter rounded-lg shadow-lg"
-      style={{
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "50vw", // ví dụ sử dụng 60% chiều ngang
-        height: "60vh", // 70% chiều cao
-        zIndex: 200,
-      }}
-    >
-      {children}
-    </div>
-  );
-};
+const UploadsContainer: React.FC<ContainerProps> = (props) => (
+  <CenteredContainer width="60vw" height="70vh" {...props} />
+);
+
+const DubbingRenderContainer: React.FC<ContainerProps> = (props) => (
+  <CenteredContainer width="50vw" height="60vh" {...props} />
+);
+
+const MENU_ITEMS = {
+  uploads: Uploads,
+  playlist: () => <div className="p-4">Playlist Component</div>,
+  dubbing: Dubbing,
+  render: Render,
+  audio: Audios,
+  logo: () => <div className="p-4">Logo Component</div>,
+  settings: () => <div className="p-4">Settings Component</div>,
+  subtitle: () => <div className="p-4">Subtitle Component</div>,
+  user: () => <div className="p-4">User Component</div>,
+  texts: Texts,
+  videos: Videos,
+  images: Images,
+} as const;
+
+type MenuItem = keyof typeof MENU_ITEMS;
 
 const ActiveMenuItem = () => {
   const { activeMenuItem } = useLayoutStore();
-
-  switch (activeMenuItem) {
-    case "uploads":
-      return <Uploads />;
-    case "playlist":
-      return <Playlist />;
-    case "dubbing":
-      return <Dubbing />;
-    case "render":
-      return <Render />;
-    case "audio":
-      return <Audios />;
-    case "logo":
-      return <Logo />;
-    case "settings":
-      return <SettingsComponent />;
-    case "subtitle":
-      return <Subtitle />;
-    case "user":
-      return <UserComponent />;
-    case "texts":
-      return <Texts />;
-    case "videos":
-      return <Videos />;
-    case "images":
-      return <Images />;
-    default:
-      return null;
-  }
+  const Component = MENU_ITEMS[activeMenuItem as MenuItem];
+  return Component ? <Component /> : null;
 };
 
 export const MenuItem = () => {
   const { activeMenuItem } = useLayoutStore();
 
-  let Wrapper = Container;
+  const getWrapper = (type: string) => {
+    if (type === "uploads") return UploadsContainer;
+    if (type === "dubbing" || type === "render") return DubbingRenderContainer;
+    return Container;
+  };
 
-  if (activeMenuItem === "uploads") {
-    Wrapper = UploadsContainer;
-  } else if (activeMenuItem === "dubbing" || activeMenuItem === "render") {
-    Wrapper = DubbingRenderContainer;
-  }
+  const Wrapper = getWrapper(activeMenuItem || "");
 
-  return (
+  return activeMenuItem ? (
     <Wrapper>
       <ActiveMenuItem />
     </Wrapper>
-  );
+  ) : null;
 };
