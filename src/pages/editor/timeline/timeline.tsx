@@ -23,6 +23,7 @@ import {
 import { TIMELINE_ITEM_DURATION_CHANGED } from "@/global";
 import { ITrackItem } from "@designcombo/types";
 import PreviewTrackItem from "./items/preview-drag-item";
+import { Lock, Unlock, Eye, Volume2, Edit } from "lucide-react";
 
 CanvasTimeline.registerItems({
   Text,
@@ -46,7 +47,7 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
   const canvasRef = useRef<CanvasTimeline | null>(null);
   const verticalScrollbarVpRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarVpRef = useRef<HTMLDivElement>(null);
-  const { scale, playerRef, fps, duration, setState, timeline } = useStore();
+  const { scale, playerRef, fps, duration, setState, timeline, isLocked, setIsLocked } = useStore();
   const currentFrame = useCurrentPlayerFrame(playerRef!);
   const [canvasSize, setCanvasSize] = useState(EMPTY_SIZE);
   const [size, setSize] = useState<{ width: number; height: number }>(
@@ -60,6 +61,10 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
       horizontalScrollbarVpRef.current.scrollLeft = -v.scrollLeft;
       setScrollLeft(-v.scrollLeft);
     }
+  };
+
+  const toggleLock = () => {
+    setIsLocked(!isLocked);
   };
 
   useEffect(() => {
@@ -305,6 +310,14 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
       className="relative h-full w-full overflow-hidden bg-background"
     >
       <Header />
+      <div className="timeline-header">
+        <button onClick={toggleLock} className="lock-button">
+          {isLocked ? <Lock className="icon" /> : <Unlock className="icon" />}
+        </button>
+        <Eye className="icon" />
+        <Volume2 className="icon" />
+        <Edit className="icon" />
+      </div>
       <Ruler onClick={onClickRuler} scrollLeft={scrollLeft} />
       <Playhead scrollLeft={scrollLeft} />
       <div className="flex">
