@@ -23,6 +23,7 @@ import {
 import { TIMELINE_ITEM_DURATION_CHANGED } from "@/global";
 import { ITrackItem } from "@designcombo/types";
 import PreviewTrackItem from "./items/preview-drag-item";
+import { Lock, Unlock } from "lucide-react"; // Import lock/unlock icons
 
 CanvasTimeline.registerItems({
   Text,
@@ -52,6 +53,7 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
   const [size, setSize] = useState<{ width: number; height: number }>(
     EMPTY_SIZE,
   );
+  const [isLocked, setIsLocked] = useState(false); // Add state for lock
 
   const { setTimeline } = useStore();
   const onScroll = (v: { scrollTop: number; scrollLeft: number }) => {
@@ -60,6 +62,10 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
       horizontalScrollbarVpRef.current.scrollLeft = -v.scrollLeft;
       setScrollLeft(-v.scrollLeft);
     }
+  };
+
+  const toggleLock = () => {
+    setIsLocked(!isLocked);
   };
 
   useEffect(() => {
@@ -118,8 +124,8 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
       },
       selectionColor: "rgba(0, 216, 214,0.1)",
       selectionBorderColor: "rgba(0, 216, 214,1.0)",
-      onScroll,
-      onResizeCanvas,
+      onScroll: isLocked ? undefined : onScroll, // Disable scroll if locked
+      onResizeCanvas: isLocked ? undefined : onResizeCanvas, // Disable resize if locked
       scale: scale,
       state: stateManager,
       duration,
@@ -214,7 +220,7 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
       updateItemDetailsSubscription.unsubscribe();
       resizeDesignSubscription.unsubscribe();
     };
-  }, []);
+  }, [isLocked]); // Add isLocked to dependencies
 
   const handleOnScrollH = (e: React.UIEvent<HTMLDivElement, UIEvent>) => {
     const scrollLeft = e.currentTarget.scrollLeft;
@@ -305,7 +311,7 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
       className="relative h-full w-full overflow-hidden bg-background"
     >
       <Header />
-      <Ruler onClick={onClickRuler} scrollLeft={scrollLeft} />
+      <Ruler onClick={isLocked ? undefined : onClickRuler} scrollLeft={scrollLeft} /> {/* Disable ruler click if locked */}
       <Playhead scrollLeft={scrollLeft} />
       <div className="flex">
         <div className="relative w-10 flex-none"></div>
@@ -326,14 +332,14 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
             }}
             className="ScrollAreaRootH"
             onPointerDown={() => {
-              canScrollRef.current = true;
+              if (!isLocked) canScrollRef.current = true;
             }}
             onPointerUp={() => {
-              canScrollRef.current = false;
+              if (!isLocked) canScrollRef.current = false;
             }}
           >
             <ScrollArea.Viewport
-              onScroll={handleOnScrollH}
+              onScroll={isLocked ? undefined : handleOnScrollH} // Disable horizontal scroll if locked
               className="ScrollAreaViewport"
               id="viewportH"
               ref={horizontalScrollbarVpRef}
@@ -355,10 +361,10 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
             >
               <ScrollArea.Thumb
                 onMouseDown={() => {
-                  canScrollRef.current = true;
+                  if (!isLocked) canScrollRef.current = true;
                 }}
                 onMouseUp={() => {
-                  canScrollRef.current = false;
+                  if (!isLocked) canScrollRef.current = false;
                 }}
                 className="ScrollAreaThumb"
               />
@@ -375,7 +381,7 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
             className="ScrollAreaRootV"
           >
             <ScrollArea.Viewport
-              onScroll={handleOnScrollV}
+              onScroll={isLocked ? undefined : handleOnScrollV} // Disable vertical scroll if locked
               className="ScrollAreaViewport"
               ref={verticalScrollbarVpRef}
             >
@@ -395,10 +401,10 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
             >
               <ScrollArea.Thumb
                 onMouseDown={() => {
-                  canScrollRef.current = true;
+                  if (!isLocked) canScrollRef.current = true;
                 }}
                 onMouseUp={() => {
-                  canScrollRef.current = false;
+                  if (!isLocked) canScrollRef.current = false;
                 }}
                 className="ScrollAreaThumb"
               />
@@ -406,6 +412,12 @@ const Timeline = ({ stateManager }: { stateManager: StateManager }) => {
           </ScrollArea.Root>
         </div>
       </div>
+      <button
+        onClick={toggleLock}
+        className="absolute top-2 right-2 p-2 bg-gray-800 text-white rounded"
+      >
+        {isLocked ? <Unlock size={16} /> : <Lock size={16} />}
+      </button>
     </div>
   );
 };
