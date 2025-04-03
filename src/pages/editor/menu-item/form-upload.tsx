@@ -1,17 +1,37 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
-export const FormUpload: React.FC = () => {
+interface FormUploadProps {
+  onFileSelected?: (file: File) => void;
+  selectedFile: File | null;
+}
+
+export const FormUpload: React.FC<FormUploadProps> = ({ onFileSelected, selectedFile }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadMode, setUploadMode] = useState<"file" | "link">("file");
   const [videoUrl, setVideoUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Xử lý preview khi có file được chọn
+  useEffect(() => {
+    if (selectedFile && selectedFile.type.startsWith('video/')) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [selectedFile]);
 
   const handleClick = () => fileInputRef.current?.click();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Xử lý upload file tại đây
-      console.log("Uploading file:", files);
+      console.log("Selected file:", files[0]);
+      // Pass the file to parent component if callback exists
+      if (onFileSelected) {
+        onFileSelected(files[0]);
+      }
     }
   };
 
@@ -86,28 +106,38 @@ export const FormUpload: React.FC = () => {
                 onClick={handleClick}
                 className="cursor-pointer flex flex-col items-center justify-center h-full w-full"
               >
-                <div className="p-4 bg-gradient-to-r from-[#883df2] via-[#0014ff] to-[#24243e] rounded-md shadow-[0_0_10px_rgba(17,269,251,0.8)]">
-                  <svg
-                    width="1.5em"
-                    height="1.5em"
-                    viewBox="0 0 24 24"
-                    preserveAspectRatio="xMidYMid meet"
-                    fill="none"
-                    role="presentation"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <g>
-                      <path
-                        d="M10.5 13.5v8a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5v-8h8a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 0-.5-.5h-8v-8A.5.5 0 0 0 13 2h-2a.5.5 0 0 0-.5.5v8h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 0 .5.5h8Z"
-                        clipRule="evenodd"
-                        fillRule="evenodd"
-                        fill="white"
-                      ></path>
-                    </g>
-                  </svg>
-                </div>
-                <p className="text-lg text-gray-0 mt-3">Nhấp để tải lên</p>
-                <p className="text-sm text-gray-100">Hoặc kéo thả file vào đây</p>
+                {previewUrl ? (
+                  <video
+                    src={previewUrl}
+                    controls
+                    className="w-full h-full object-cover rounded-md"
+                  />
+                ) : (
+                  <>
+                    <div className="p-4 bg-gradient-to-r from-[#883df2] via-[#0014ff] to-[#24243e] rounded-md shadow-[0_0_10px_rgba(17,269,251,0.8)]">
+                      <svg
+                        width="1.5em"
+                        height="1.5em"
+                        viewBox="0 0 24 24"
+                        preserveAspectRatio="xMidYMid meet"
+                        fill="none"
+                        role="presentation"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <g>
+                          <path
+                            d="M10.5 13.5v8a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5v-8h8a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 0-.5-.5h-8v-8A.5.5 0 0 0 13 2h-2a.5.5 0 0 0-.5.5v8h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 0 .5.5h8Z"
+                            clipRule="evenodd"
+                            fillRule="evenodd"
+                            fill="white"
+                          ></path>
+                        </g>
+                      </svg>
+                    </div>
+                    <p className="text-lg text-gray-0 mt-3">Nhấp để tải lên</p>
+                    <p className="text-sm text-gray-100">Hoặc kéo thả file vào đây</p>
+                  </>
+                )}
               </div>
             ) : (
               // Khi chế độ link: không kích hoạt file input
@@ -180,7 +210,7 @@ export const FormUpload: React.FC = () => {
                     className="h-6 w-6"
                   >
                     <path
-                      d="m8 0a8 8 0 1 0 8 8 8.0106 8.0106 0 0 0 -8-8zm1.06 10.47-.71.71a2.4506 2.4506 0 0 1 -1.76.73 2.4961 2.4961 0 0 1 -1.77-4.26l.71-.71a.4833.4833 0 0 1 .7 0 .4951.4951 0 0 1 0 .71l-.71.7a1.5064 1.5064 0 0 0 -.43 1.06 1.4723 1.4723 0 0 0 .43 1.06 1.5029 1.5029 0 0 0 2.13 0l.7-.7a.4951.4951 0 0 1 .71 0 .4833.4833 0 0 1 0 .7zm.35-3.18-2.12 2.12a.4833.4833 0 0 1 -.7 0 .4833.4833 0 0 1 0-.7l2.12-2.12a.495.495 0 1 1 .7.7zm1.77 1.06-.71.71a.4691.4691 0 0 1 -.35.15.4852.4852 0 0 1 -.35-.15.4951.4951 0 0 1 0-.71l.71-.7a1.5064 1.5064 0 0 0 .43-1.06 1.4723 1.4723 0 0 0 -.43-1.06 1.5029 1.5029 0 0 0 -2.13 0l-.7.7a.4951.4951 0 0 1 -.71 0 .4833.4833 0 0 1 0-.7l.71-.71a2.4961 2.4961 0 0 1 3.53 3.53z"
+                      d="m8 0a8 8 0 1 0 8 8 8.0106 8.0106 0 0 0 -8-8zm1.06 10.47-.71.71a2.4506 2.4506 0 0 1 -1.76.73 2.4961 2.4961 0 0 1 -1.77-4.26l.71-.71a.4833.4833 0 0 1 .7 0 .4951.4951 0 0 1 0 .71l-.71.7a1.5064 1.5064 0 0 0 -.43 1.06 1.4723 1.4723 0 0 0 .43 1.06 1.5029 1.5029 0 0 0 2.13 0l.7-.7a.4951.4951 0 0 1 .71 0 .4833.4833 0 0 1 0 .7zm.35-3.18-2.12 2.12a.4833.4833 0 0 1 -.7 0 .4833.4833 0 0 1 0-.7l2.12-2.12a.495.4951 0 1 1 .7.7zm1.77 1.06-.71.71a.4691.4691 0 0 1 -.35.15.4852.4852 0 0 1 -.35-.15.4951.4951 0 0 1 0-.71l.71-.7a1.5064 1.5064 0 0 0 .43-1.06 1.4723 1.4723 0 0 0 -.43-1.06 1.5029 1.5029 0 0 0 -2.13 0l-.7.7a.4951.4951 0 0 1 -.71 0 .4833.4833 0 0 1 0-.7l.71-.71a2.4961 2.4961 0 0 1 3.53 3.53z"
                       fill="#2196f3"
                     ></path>
                   </svg>
