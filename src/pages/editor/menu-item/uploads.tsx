@@ -5,9 +5,11 @@ import { Progress } from "@/components/ui/progress";
 import {FormUpload} from "./form-upload";
 import { OptionUpload } from "./upload-option";
 import { ActionButton } from "@/components/ActionButton";
+import useLayoutStore from "../store/use-layout-store";
 
 export const Uploads = () => {
   const inputFileRef = useRef<HTMLInputElement>(null);
+  const currentXhr = useRef<XMLHttpRequest | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -15,12 +17,19 @@ export const Uploads = () => {
     success: boolean;
     message: string;
   } | null>(null);
+  
+  // Lấy hàm setShowMenuItem từ useLayoutStore để đóng form upload
+  const { setShowMenuItem, setActiveMenuItem } = useLayoutStore();
 
   const handleAction = (action: string) => {
     if (action === "cancel") {
       setSelectedFile(null);
       setUploadStatus(null);
       if (inputFileRef.current) inputFileRef.current.value = "";
+      if (currentXhr.current) {
+        currentXhr.current.abort();
+        currentXhr.current = null;
+      }
     }
   };
 
@@ -43,34 +52,145 @@ export const Uploads = () => {
     formData.append("video", selectedFile);
   
     const apiUrl = "http://localhost:8000/api/v1/videos/upload";
-    const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0YXBpIiwidWlkIjoiOTExM2ViZDYtMWNmOS00MDM5LWJiMzQtZjMwMzhmYzEzYmU5Iiwiaml0IjoiZTVkOTdhZDAtOTBiOS00NmM3LTg5Y2UtZmMxMWJlYjM1MzZhIiwiZXhwIjoxNzQzNzIyNDE3fQ.prsK32oHvytE15ASJSqxhZXv_-OhQogS6aMAQP1DxMc";
+    const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0YXBpIiwidWlkIjoiOTExM2ViZDYtMWNmOS00MDM5LWJiMzQtZjMwMzhmYzEzYmU5Iiwiaml0IjoiNmI0Mjk1NTAtMDc1Zi00Njc3LWJiZjQtZDA3YmIyYWVkMzM1IiwiZXhwIjoxNzQzNzY3MjM2fQ.ty8BAyWQsPm3n2aFs-HM56Puap0uMv6OJTlZSYQloYA";
   
     try {
       setIsUploading(true);
       setUploadProgress(0);
+      setUploadStatus({ success: true, message: "Đang tải video lên server..." });
       
-      // Sử dụng XMLHttpRequest để theo dõi tiến trình tải lên
+      // Khởi tạo đối tượng XMLHttpRequest
       const xhr = new XMLHttpRequest();
       
-      // Theo dõi sự kiện tiến trình
+      // Lưu tham chiếu để có thể hủy yêu cầu khi cần
+      currentXhr.current = xhr;
+      
+      // Chia tiến trình thành các giai đoạn
+      // Phase 1: 0-40% - Upload dữ liệu lên server
+      // Phase 2: 40-95% - Server xử lý dữ liệu (phần này sẽ mất nhiều thời gian)
+      // Phase 3: 95-100% - Hoàn thành và xác nhận
+      
+      let phase = 1;
+      let simulatedProgress = 0;
+      let actualUploadProgress = 0;
+      let processingStarted = false;
+      let progressInterval: ReturnType<typeof setInterval>;
+      
+      // Theo dõi sự kiện tiến trình tải lên thực tế
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
-          const progress = Math.round((event.loaded / event.total) * 100);
-          setUploadProgress(progress);
+          // Tiến trình upload thực tế chỉ tính đến 40%
+          actualUploadProgress = Math.round((event.loaded / event.total) * 40);
         }
       });
+      
+      // Theo dõi khi tải lên hoàn tất (nhưng server vẫn đang xử lý)
+      xhr.upload.addEventListener('load', () => {
+        phase = 2;
+        processingStarted = true;
+        actualUploadProgress = 40;
+        setUploadStatus({ success: true, message: "Video đã được tải lên, đang chờ server xử lý..." });
+      });
+      
+      // Phân chia các mốc tiến trình cho tự nhiên
+      const simulateProgress = () => {
+        progressInterval = setInterval(() => {
+          // Phase 1: Upload file (0-40%)
+          if (phase === 1) {
+            if (simulatedProgress < actualUploadProgress) {
+              simulatedProgress += 1;
+              setUploadProgress(simulatedProgress);
+            }
+          } 
+          // Phase 2: Server processing (40-95%) - Mô phỏng thời gian xử lý dài
+          else if (phase === 2) {
+            // Tiến độ xử lý server - tăng rất chậm
+            if (processingStarted) {
+              if (simulatedProgress < 50) {
+                // 40-50%: Tăng nhanh ban đầu
+                simulatedProgress += 0.5;
+              } else if (simulatedProgress < 60) {
+                // 50-60%: Chậm lại
+                simulatedProgress += 0.2;
+                if (simulatedProgress >= 60 && !processingMessageUpdated) {
+                  setUploadStatus({ success: true, message: "Đang chuyển đổi định dạng video..." });
+                  processingMessageUpdated = true;
+                }
+              } else if (simulatedProgress < 75) {
+                // 60-75%: Rất chậm
+                simulatedProgress += 0.1;
+                if (simulatedProgress >= 70 && !processingMessageUpdated2) {
+                  setUploadStatus({ success: true, message: "Đang xử lý video, vui lòng đợi..." });
+                  processingMessageUpdated2 = true;
+                }
+              } else if (simulatedProgress < 85) {
+                // 75-85%: Cực kỳ chậm
+                simulatedProgress += 0.05;
+              } else if (simulatedProgress < 90) {
+                // 85-90%: Gần như dừng lại
+                simulatedProgress += 0.02;
+              } else if (simulatedProgress < 95) {
+                // 90-95%: Hầu như không nhúc nhích
+                const shouldIncrement = Math.random() < 0.3; // Chỉ tăng 30% thời gian
+                if (shouldIncrement) {
+                  simulatedProgress += 0.01;
+                }
+              }
+              
+              setUploadProgress(Math.min(Math.round(simulatedProgress * 10) / 10, 95));
+            }
+          }
+        }, 200);
+      };
+      
+      // Biến để theo dõi cập nhật thông báo
+      let processingMessageUpdated = false;
+      let processingMessageUpdated2 = false;
+      
+      simulateProgress();
       
       // Promise wrapper cho XMLHttpRequest
       const uploadPromise = new Promise((resolve, reject) => {
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
+              clearInterval(progressInterval);
               const data = JSON.parse(xhr.responseText);
-              resolve(data);
+              
+              // Cập nhật thông báo khi server trả về thành công
+              setUploadStatus({ success: true, message: "Xử lý video hoàn tất!" });
+              
+              // Hoàn thành tiến trình - chuyển từ 95% lên 100%
+              const completeProgress = () => {
+                const startValue = 95;
+                const endValue = 100;
+                const duration = 1000; // 1 giây
+                const startTime = Date.now();
+                
+                const animateToComplete = () => {
+                  const elapsed = Date.now() - startTime;
+                  const progress = Math.min(elapsed / duration, 1);
+                  const currentValue = Math.round(startValue + (endValue - startValue) * progress);
+                  setUploadProgress(currentValue);
+                  
+                  if (progress < 1) {
+                    requestAnimationFrame(animateToComplete);
+                  } else {
+                    // Chỉ resolve promise khi tiến trình đạt 100%
+                    resolve(data);
+                  }
+                };
+                
+                animateToComplete();
+              };
+              
+              completeProgress();
             } catch (e) {
+              clearInterval(progressInterval);
               reject(new Error('Lỗi khi phân tích phản hồi từ máy chủ'));
             }
           } else {
+            clearInterval(progressInterval);
             try {
               const errorData = JSON.parse(xhr.responseText);
               reject(errorData);
@@ -80,8 +200,20 @@ export const Uploads = () => {
           }
         };
         
-        xhr.onerror = () => reject(new Error('Lỗi kết nối mạng'));
-        xhr.ontimeout = () => reject(new Error('Yêu cầu hết thời gian chờ'));
+        xhr.onerror = () => {
+          clearInterval(progressInterval);
+          reject(new Error('Lỗi kết nối mạng'));
+        };
+        
+        xhr.ontimeout = () => {
+          clearInterval(progressInterval);
+          reject(new Error('Yêu cầu hết thời gian chờ'));
+        };
+        
+        xhr.onabort = () => {
+          clearInterval(progressInterval);
+          reject(new Error('Đã hủy tải lên'));
+        };
       });
       
       // Thiết lập và gửi yêu cầu
@@ -93,10 +225,20 @@ export const Uploads = () => {
       const data = await uploadPromise;
       
       console.log("Upload thành công:", data);
-      setUploadStatus({ success: true, message: `Video "${selectedFile.name}" đã được upload thành công!` });
-      // Reset file input sau khi upload thành công
-      setSelectedFile(null);
-      if (inputFileRef.current) inputFileRef.current.value = "";
+      setUploadStatus({ success: true, message: `Video "${selectedFile.name}" đã được tải lên thành công!` });
+      
+      // Tự động đóng form upload sau 2 giây khi thành công
+      setTimeout(() => {
+        // Reset file input và các state
+        setSelectedFile(null);
+        setUploadStatus(null);
+        if (inputFileRef.current) inputFileRef.current.value = "";
+        
+        // Tự động đóng menu tải lên hoàn toàn bằng cách reset cả hai trạng thái
+        setShowMenuItem(false);
+        setActiveMenuItem(null);
+      }, 2000);
+      
     } catch (error) {
       console.error("Lỗi upload:", error);
       setUploadStatus({ 
@@ -105,6 +247,7 @@ export const Uploads = () => {
       });
     } finally {
       setIsUploading(false);
+      currentXhr.current = null;
     }
   };
 
@@ -132,6 +275,18 @@ export const Uploads = () => {
                     File đã chọn: <strong>{selectedFile.name}</strong> ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
                   </div>
                 )}
+                
+                {/* Hiển thị thanh tiến trình khi đang tải lên */}
+                {isUploading && (
+                  <div className="mb-3">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs text-gray-300">Đang tải lên...</span>
+                      <span className="text-xs text-gray-300">{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-2" />
+                  </div>
+                )}
+                
                 <div className="flex justify-end gap-2">
                   <ActionButton
                     label="Hủy"
