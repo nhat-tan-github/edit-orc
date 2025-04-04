@@ -18,36 +18,40 @@ import { AuthLayout } from "./auth-layout";
 import useAuthStore from "@/store/use-auth-store";
 
 const formSchema = z.object({
-  email: z
+  username: z
     .string({
-      required_error: "Please enter email",
+      required_error: "Vui lòng nhập tên đăng nhập",
     })
-    .email("Please enter valid email")
-    .min(1, "Please enter email"),
+    .min(1, "Vui lòng nhập tên đăng nhập"),
+  password: z
+    .string({
+      required_error: "Vui lòng nhập mật khẩu",
+    })
+    .min(1, "Vui lòng nhập mật khẩu"),
 });
 
 export type LoginUser = z.infer<typeof formSchema>;
 
 export default function Auth() {
-  const { signinWithMagicLink, signinWithGithub } = useAuthStore();
+  const { login, signinWithGithub } = useAuthStore();
   const form = useForm<LoginUser>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      username: "",
+      password: "",
     },
   });
 
   async function onSubmit(values: LoginUser) {
     try {
-      const { error } = await signinWithMagicLink({
-        email: values.email,
-      });
-      if (error) {
-        alert(error.error_description || error.message);
-      } else {
-        alert("Check your email for the login link!");
+      const result = await login(values);
+      if (result.error) {
+        alert(result.error);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Login error:", e);
+      alert("Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.");
+    }
   }
 
   return (
@@ -74,21 +78,50 @@ export default function Auth() {
                   <div>
                     <FormField
                       control={form.control}
-                      name="email"
+                      name="username"
                       render={({ field }) => (
                         <FormItem>
                           <label
-                            htmlFor="email"
+                            htmlFor="username"
                             className="dark:text-muted-dark block text-sm font-medium leading-6 text-muted-foreground"
                           >
-                            Email address
+                            Username
                           </label>
                           <FormControl>
                             <div className="mt-2">
                               <input
-                                id="email"
-                                type="email"
-                                placeholder="user@email.com"
+                                id="username"
+                                type="text"
+                                placeholder="Enter your username"
+                                className="shadow-aceternity block w-full rounded-md border-0 bg-white px-4 py-1.5 text-black placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:bg-neutral-900 dark:text-white sm:text-sm sm:leading-6"
+                                {...field}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <label
+                            htmlFor="password"
+                            className="dark:text-muted-dark block text-sm font-medium leading-6 text-muted-foreground"
+                          >
+                            Password
+                          </label>
+                          <FormControl>
+                            <div className="mt-2">
+                              <input
+                                id="password"
+                                type="password"
+                                placeholder="Enter your password"
                                 className="shadow-aceternity block w-full rounded-md border-0 bg-white px-4 py-1.5 text-black placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:bg-neutral-900 dark:text-white sm:text-sm sm:leading-6"
                                 {...field}
                               />

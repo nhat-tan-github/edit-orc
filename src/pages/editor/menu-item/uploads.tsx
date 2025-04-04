@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -6,6 +6,8 @@ import {FormUpload} from "./form-upload";
 import { OptionUpload } from "./upload-option";
 import { ActionButton } from "@/components/ActionButton";
 import useLayoutStore from "../store/use-layout-store";
+import useAuthStore from "@/store/use-auth-store";
+import { useNavigate } from "react-router-dom";
 
 export const Uploads = () => {
   const inputFileRef = useRef<HTMLInputElement>(null);
@@ -20,6 +22,27 @@ export const Uploads = () => {
   
   // Lấy hàm setShowMenuItem từ useLayoutStore để đóng form upload
   const { setShowMenuItem, setActiveMenuItem } = useLayoutStore();
+  
+  // Lấy thông tin xác thực từ useAuthStore
+  const { isAuthenticated, accessToken } = useAuthStore();
+  const navigate = useNavigate();
+  
+  // Kiểm tra trạng thái đăng nhập khi component được mount
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUploadStatus({
+        success: false,
+        message: "Bạn cần đăng nhập để tải lên video. Đang chuyển hướng đến trang đăng nhập..."
+      });
+      
+      // Chờ 2 giây trước khi chuyển hướng
+      const redirectTimer = setTimeout(() => {
+        navigate("/auth");
+      }, 2000);
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleAction = (action: string) => {
     if (action === "cancel") {
@@ -42,6 +65,20 @@ export const Uploads = () => {
   };
 
   const handleConfirm = async () => {
+    // Kiểm tra xác thực trước khi upload
+    if (!isAuthenticated || !accessToken) {
+      setUploadStatus({
+        success: false,
+        message: "Bạn cần đăng nhập để tải lên video. Đang chuyển hướng đến trang đăng nhập..."
+      });
+      
+      // Chuyển hướng đến trang đăng nhập sau 2 giây
+      setTimeout(() => {
+        navigate('/auth');
+      }, 2000);
+      return;
+    }
+    
     if (!selectedFile) {
       console.error("Chưa chọn tệp nào.");
       alert("Vui lòng chọn một tệp video.");
@@ -52,7 +89,6 @@ export const Uploads = () => {
     formData.append("video", selectedFile);
   
     const apiUrl = "http://localhost:8000/api/v1/videos/upload";
-    const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0YXBpIiwidWlkIjoiOTExM2ViZDYtMWNmOS00MDM5LWJiMzQtZjMwMzhmYzEzYmU5Iiwiaml0IjoiNmI0Mjk1NTAtMDc1Zi00Njc3LWJiZjQtZDA3YmIyYWVkMzM1IiwiZXhwIjoxNzQzNzY3MjM2fQ.ty8BAyWQsPm3n2aFs-HM56Puap0uMv6OJTlZSYQloYA";
   
     try {
       setIsUploading(true);

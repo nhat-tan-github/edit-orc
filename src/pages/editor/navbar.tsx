@@ -135,9 +135,10 @@ export default function Navbar() {
 }
 
 const UserMenu = () => {
-  const { user, signOut } = useAuthStore();
+  const { user, username, signOut, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
-  if (!user) {
+  
+  if (!isAuthenticated) {
     return (
       <Button
         onClick={() => navigate("/auth")}
@@ -153,12 +154,14 @@ const UserMenu = () => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Avatar className="h-8 w-8 cursor-pointer">
-          <AvatarImage src={user.avatar} alt="@user" />
-          <AvatarFallback>{user.email.slice(0, 2)}</AvatarFallback>
+          <AvatarImage src={user?.avatar} alt="@user" />
+          <AvatarFallback>{username?.slice(0, 2).toUpperCase() || 'U'}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="mr-2 mt-2 w-56">
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          Chào {username || 'User'}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem>
