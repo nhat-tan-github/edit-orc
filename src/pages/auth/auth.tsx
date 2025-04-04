@@ -62,7 +62,14 @@ export default function Auth() {
             <div>
               <div className="flex items-center gap-2 text-sm font-medium">
                 <img src={logoDark} alt="logo" className="h-5 w-5" />
-                <div>DesignCombo</div>
+                <div
+                  onClick={() => {
+                    window.location.href = "/";
+                  }
+                  }
+                >
+                  DesignCombo
+                  </div>
               </div>
               <h2 className="mt-8 text-2xl font-bold leading-9 tracking-tight text-black dark:text-white">
                 Sign in to your account
@@ -135,6 +142,15 @@ export default function Auth() {
 
                   <div>
                     <Button className="w-full">Sign in</Button>
+                  </div>
+
+                  <div className="text-sm"> Don't have an account?
+                    <Link 
+                    to="/auth/register"
+                    className="font-semibold text-neutral-500 hover:text-neutral-400 dark:text-neutral-300"
+                    >
+                      Register
+                      </Link>
                   </div>
                 </form>
               </div>
