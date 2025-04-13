@@ -97,7 +97,7 @@ const DubbingRenderContainer: React.FC<ContainerProps> = (props) => (
 
 const MENU_ITEMS = {
   uploads: Uploads,
-  playlist: () => <div className="p-4">Playlist Component</div>,
+  playlist: Videos,
   dubbing: Dubbing,
   render: Render,
   audio: Audios,
