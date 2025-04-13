@@ -1,18 +1,114 @@
 import Draggable from "@/components/shared/draggable";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { VIDEOS } from "@/data/video";
 import { dispatch } from "@designcombo/events";
 import { ADD_VIDEO } from "@designcombo/state";
 import { generateId } from "@designcombo/timeline";
 import { IVideo } from "@designcombo/types";
-import React from "react";
+import { VideoIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { useIsDraggingOverTimeline } from "../hooks/is-dragging-over-timeline";
 
+interface VideoItem {
+  video_id: string;
+  file_name: string;
+  file_url: string;
+  created_at: string;
+  thumbnail: string;
+}
+
+const SCROLL_TO_VIDEO = 'SCROLL_TO_VIDEO';
+
+const defaultVideoDetails = {
+  width: 1920,
+  height: 1080,
+  opacity: 100,
+  volume: 100,
+  borderRadius: 0,
+  borderWidth: 0,
+  borderColor: "#000000",
+  boxShadow: {
+    color: "#000000",
+    x: 0,
+    y: 0,
+    blur: 0,
+  },
+  top: "0px",
+  left: "0px",
+  transform: "none",
+  blur: 0,
+  brightness: 100,
+  flipX: false,
+  flipY: false,
+  rotate: "0deg",
+  visibility: "visible" as const,
+};
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  };
+  return date.toLocaleString('vi-VN', options);
+};
+
 export const Videos = () => {
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isDraggingOverTimeline = useIsDraggingOverTimeline();
 
-  const handleAddVideo = (payload: Partial<IVideo>) => {
-    // payload.details.src = "https://cdn.designcombo.dev/videos/timer-20s.mp4";
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:8000/api/v1/videos/', {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJodW5nMTIzIiwidWlkIjoiMjNkMDA0NmYtNDM5ZC00NDgxLWE1MzAtZDMxZmI4YWZjZGZkIiwiaml0IjoiNWUzZGJiMGQtNjFkNS00Nzg3LThjNTktNmUwZWFmMGNiOTRmIiwiZXhwIjoxNzQ0NTQ2MzQ1fQ.p9POqLgyglQL-ZsCjvV_COrG0j7AmS7dEYnBDg10K6k',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('API Response:', data);
+
+        if (data && data.videos && Array.isArray(data.videos)) {
+          setVideos(data.videos);
+        } else {
+          throw new Error('Invalid response format');
+        }
+      } catch (error) {
+        console.error('Error fetching videos:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch videos');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideos();
+  }, []);
+
+  const handleAddVideo = (video: VideoItem) => {
+    const payload: Partial<IVideo> = {
+      type: "video",
+      details: {
+        ...defaultVideoDetails,
+        src: video.file_url,
+      },
+      name: video.file_name,
+      id: generateId(),
+    };
+
     dispatch(ADD_VIDEO, {
       payload,
       options: {
@@ -20,81 +116,110 @@ export const Videos = () => {
         scaleMode: "fit",
       },
     });
+
+    dispatch(SCROLL_TO_VIDEO, {
+      payload: {
+        id: payload.id,
+      },
+    });
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <div className="text-text-primary flex h-12 flex-none items-center px-4 text-sm font-medium">
+          Videos
+        </div>
+        <div className="flex h-32 items-center justify-center text-zinc-400">
+          Loading videos...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <div className="text-text-primary flex h-12 flex-none items-center px-4 text-sm font-medium">
+          Videos
+        </div>
+        <div className="flex h-32 items-center justify-center text-red-400">
+          Error: {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col">
       <div className="text-text-primary flex h-12 flex-none items-center px-4 text-sm font-medium">
         Videos
       </div>
-      <ScrollArea>
-        <div className="masonry-sm px-4">
-          {VIDEOS.map((video, index) => {
-            return (
-              <VideoItem
-                key={index}
-                video={video}
-                shouldDisplayPreview={!isDraggingOverTimeline}
-                handleAddImage={handleAddVideo}
-              />
-            );
-          })}
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-2 p-4">
+          {videos.map((video) => (
+            <VideoItem
+              key={video.video_id}
+              video={video}
+              shouldDisplayPreview={!isDraggingOverTimeline}
+              onAddVideo={handleAddVideo}
+            />
+          ))}
         </div>
       </ScrollArea>
     </div>
   );
 };
 
-const VideoItem = ({
-  handleAddImage,
-  video,
-  shouldDisplayPreview,
-}: {
-  handleAddImage: (payload: Partial<IVideo>) => void;
-  video: Partial<IVideo>;
+interface VideoItemProps {
+  video: VideoItem;
   shouldDisplayPreview: boolean;
-}) => {
-  const style = React.useMemo(
-    () => ({
-      backgroundImage: `url(${video.preview})`,
-      backgroundSize: "cover",
-      width: "80px",
-      height: "80px",
-    }),
-    [video.preview],
-  );
+  onAddVideo: (video: VideoItem) => void;
+}
+
+const VideoItem = ({ video, shouldDisplayPreview, onAddVideo }: VideoItemProps) => {
+  const thumbnailStyle = {
+    backgroundImage: `url(${video.thumbnail || 'https://placehold.co/300x200/333/FFF?text=Video'})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    width: '80px',
+    height: '60px',
+  };
+
+  const draggableData = {
+    type: "video" as const,
+    details: {
+      ...defaultVideoDetails,
+      src: video.file_url,
+    },
+    name: video.file_name,
+  };
 
   return (
     <Draggable
-      data={{
-        ...video,
-        metadata: {
-          previewUrl: video.preview,
-        },
-      }}
-      renderCustomPreview={<div style={style} className="draggable" />}
+      data={draggableData}
+      renderCustomPreview={<div style={thumbnailStyle} />}
       shouldDisplayPreview={shouldDisplayPreview}
     >
       <div
-        onClick={() =>
-          handleAddImage({
-            id: generateId(),
-            details: {
-              src: video.details!.src,
-            },
-            metadata: {
-              previewUrl: video.preview,
-            },
-          } as any)
-        }
-        className="flex w-full items-center justify-center overflow-hidden bg-background pb-2"
+        draggable={false}
+        onClick={() => onAddVideo(video)}
+        className="group flex items-center gap-4 cursor-pointer p-2 hover:bg-zinc-800/50 transition-colors"
       >
-        <img
-          draggable={false}
-          src={video.preview}
-          className="h-full w-full rounded-md object-cover"
-          alt="image"
-        />
+        <div className="relative flex-shrink-0">
+          <div style={thumbnailStyle} className="rounded" />
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
+            <VideoIcon className="text-white opacity-0 group-hover:opacity-100 transition-opacity" width={20} height={20} />
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-white truncate max-w-[200px]">
+            {video.file_name}
+          </div>
+          <div className="text-xs text-zinc-400">
+            {formatDate(video.created_at)}
+          </div>
+        </div>
       </div>
     </Draggable>
   );

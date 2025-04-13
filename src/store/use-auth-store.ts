@@ -47,18 +47,15 @@ const useAuthStore = create<AuthStore>((set, get) => ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(credentials),
-        credentials: 'include', // Giữ lại option này để gửi cookies nếu cần
       });
 
       console.log('Status code:', response.status);
       console.log('Response headers:', Object.fromEntries([...response.headers]));
       
       if (response.ok) {
-        // Sử dụng json() thay vì text() vì API trả về chuỗi JSON
         const tokenString = await response.json();
         console.log('Response data (token):', tokenString);
 
-        // Kiểm tra nếu có token và là JWT hợp lệ
         if (tokenString && typeof tokenString === 'string' && tokenString.startsWith('eyJ')) {
           console.log('Đăng nhập thành công, lưu token');
           localStorage.setItem('access_token', tokenString);
@@ -86,7 +83,10 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       }
     } catch (error) {
       console.error('Login error:', error);
-      return { error: 'Không thể kết nối đến server' };
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        return { error: 'Không thể kết nối đến server. Vui lòng kiểm tra:\n1. Server backend có đang chạy không\n2. URL API có chính xác không\n3. CORS đã được cấu hình đúng chưa' };
+      }
+      return { error: 'Đã xảy ra lỗi không xác định' };
     }
   },
 
