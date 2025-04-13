@@ -7,6 +7,7 @@ import { IVideo } from "@designcombo/types";
 import { VideoIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useIsDraggingOverTimeline } from "../hooks/is-dragging-over-timeline";
+import useAuthStore from "@/store/use-auth-store";
 
 interface VideoItem {
   video_id: string;
@@ -56,11 +57,11 @@ const formatDate = (dateString: string) => {
   return date.toLocaleString('vi-VN', options);
 };
 
-export const Videos = () => {
-  const [videos, setVideos] = useState<VideoItem[]>([]);
+export const Videos = () => {  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isDraggingOverTimeline = useIsDraggingOverTimeline();
+  const { accessToken } = useAuthStore();
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -69,7 +70,7 @@ export const Videos = () => {
         const response = await fetch('http://localhost:8000/api/v1/videos/', {
           method: 'GET',
           headers: {
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJodW5nMTIzIiwidWlkIjoiMjNkMDA0NmYtNDM5ZC00NDgxLWE1MzAtZDMxZmI4YWZjZGZkIiwiaml0IjoiNWUzZGJiMGQtNjFkNS00Nzg3LThjNTktNmUwZWFmMGNiOTRmIiwiZXhwIjoxNzQ0NTQ2MzQ1fQ.p9POqLgyglQL-ZsCjvV_COrG0j7AmS7dEYnBDg10K6k',
+            'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           }
