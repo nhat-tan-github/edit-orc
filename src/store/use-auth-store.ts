@@ -36,36 +36,53 @@ const useAuthStore = create<AuthStore>((set, get) => ({
   // Đăng nhập với API của bạn
   login: async (credentials: LoginCredentials) => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+      console.log('Đang gửi yêu cầu đăng nhập với:', credentials);
+      
+      const apiUrl = 'http://localhost:8000/api/v1/auth/login';
+      console.log('API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(credentials),
+        credentials: 'include', // Giữ lại option này để gửi cookies nếu cần
       });
 
-      const data = await response.json();
+      console.log('Status code:', response.status);
+      console.log('Response headers:', Object.fromEntries([...response.headers]));
+      
+      if (response.ok) {
+        // Sử dụng json() thay vì text() vì API trả về chuỗi JSON
+        const tokenString = await response.json();
+        console.log('Response data (token):', tokenString);
 
-      if (response.ok && data.access_token) {
-        // Lưu token và username vào localStorage
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('username', credentials.username);
-        
-        // Cập nhật state trong store
-        set({ 
-          accessToken: data.access_token,
-          isAuthenticated: true,
-          username: credentials.username,
-          // Tạm thời đặt user với username từ credentials
-          user: { id: '1', email: credentials.username, avatar: '' }
-        });
+        // Kiểm tra nếu có token và là JWT hợp lệ
+        if (tokenString && typeof tokenString === 'string' && tokenString.startsWith('eyJ')) {
+          console.log('Đăng nhập thành công, lưu token');
+          localStorage.setItem('access_token', tokenString);
+          localStorage.setItem('username', credentials.username);
+          
+          set({ 
+            accessToken: tokenString,
+            isAuthenticated: true,
+            username: credentials.username,
+            user: { id: '1', email: credentials.username, avatar: '', username: credentials.username, provider: 'github' }
+          });
 
-        // Chuyển hướng tới trang chính sau khi đăng nhập thành công
-        window.location.href = '/';
-        
-        return data;
+          console.log('Chuyển hướng sau đăng nhập thành công');
+          window.location.href = '/';
+          
+          return { access_token: tokenString };
+        } else {
+          console.error('Token không hợp lệ:', tokenString);
+          return { error: 'Token không hợp lệ' };
+        }
       } else {
-        return { error: data.detail || 'Đăng nhập thất bại' };
+        const errorText = await response.text();
+        console.error('Đăng nhập thất bại:', errorText);
+        return { error: errorText || 'Đăng nhập thất bại' };
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -79,7 +96,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     return {};
   },
   
-  signinWithMagicLink: async () => {
+  signinWithMagicLink: async ({ email }: { email: string }) => {
     // Giữ phương thức này để tương thích với mã nguồn cũ
     alert('Chức năng đăng nhập qua Magic Link hiện không khả dụng');
     return {};
@@ -89,24 +106,29 @@ const useAuthStore = create<AuthStore>((set, get) => ({
   signOut: async () => {
     try {
       const token = get().accessToken;
+      console.log('Đang thực hiện đăng xuất');
       
       if (token) {
         // Gọi API đăng xuất
+        console.log('Gửi yêu cầu đăng xuất đến server');
         await fetch('http://localhost:8000/api/v1/auth/logout', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
           },
+          credentials: 'include',
         });
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       // Xóa token và username, reset trạng thái đăng nhập
+      console.log('Xóa thông tin đăng nhập khỏi localStorage');
       localStorage.removeItem('access_token');
       localStorage.removeItem('username');
       set({ user: null, isAuthenticated: false, accessToken: null, username: null });
       // Reload trang sau khi đăng xuất
+      console.log('Chuyển hướng sau đăng xuất');
       window.location.href = '/';
     }
   },
