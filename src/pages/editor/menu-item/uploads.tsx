@@ -9,6 +9,51 @@ import useLayoutStore from "../store/use-layout-store";
 import useAuthStore from "@/store/use-auth-store";
 import { useNavigate } from "react-router-dom";
 
+// Function to store video IDs in localStorage
+const saveVideoId = (videoId, fileName) => {
+  try {
+    // Get existing video IDs or initialize empty array
+    const existingVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
+    
+    // Add new video ID with filename and timestamp
+    existingVideos.push({
+      id: videoId,
+      fileName: fileName,
+      uploadedAt: new Date().toISOString()
+    });
+    
+    // Save back to localStorage
+    localStorage.setItem('uploadedVideos', JSON.stringify(existingVideos));
+    
+    // Also store the most recent video ID separately for quick access
+    localStorage.setItem('mostRecentVideoId', videoId);
+    
+    console.log("Video ID saved successfully:", videoId);
+    return true;
+  } catch (error) {
+    console.error("Failed to save video ID:", error);
+    return false;
+  }
+};
+
+// Function to get a video ID (most recent by default)
+export const getVideoId = (specific = null) => {
+  try {
+    // If a specific ID is requested, try to find it
+    if (specific) {
+      const existingVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
+      const found = existingVideos.find(v => v.id === specific);
+      return found ? found.id : null;
+    }
+    
+    // Otherwise return the most recent
+    return localStorage.getItem('mostRecentVideoId');
+  } catch (error) {
+    console.error("Failed to retrieve video ID:", error);
+    return null;
+  }
+};
+
 export const Uploads = () => {
   const inputFileRef = useRef<HTMLInputElement>(null);
   const currentXhr = useRef<XMLHttpRequest | null>(null);
@@ -18,6 +63,7 @@ export const Uploads = () => {
   const [uploadStatus, setUploadStatus] = useState<{
     success: boolean;
     message: string;
+    videoId?: string;
   } | null>(null);
   
   // Lấy hàm setShowMenuItem từ useLayoutStore để đóng form upload
@@ -193,8 +239,20 @@ export const Uploads = () => {
               clearInterval(progressInterval);
               const data = JSON.parse(xhr.responseText);
               
+              // Lưu video_id từ response nếu có
+              const videoId = data.video_id;
+              if (videoId) {
+                // Lưu video_id vào localStorage
+                const saved = saveVideoId(videoId, selectedFile.name);
+                console.log(`Video ID ${videoId} saved:`, saved);
+              }
+              
               // Cập nhật thông báo khi server trả về thành công
-              setUploadStatus({ success: true, message: "Xử lý video hoàn tất!" });
+              setUploadStatus({ 
+                success: true, 
+                message: "Xử lý video hoàn tất!",
+                videoId: videoId // Lưu video_id vào state để hiển thị nếu cần
+              });
               
               // Hoàn thành tiến trình - chuyển từ 95% lên 100%
               const completeProgress = () => {
@@ -261,7 +319,11 @@ export const Uploads = () => {
       const data = await uploadPromise;
       
       console.log("Upload thành công:", data);
-      setUploadStatus({ success: true, message: `Video "${selectedFile.name}" đã được tải lên thành công!` });
+      setUploadStatus({ 
+        success: true, 
+        message: `Video "${selectedFile.name}" đã được tải lên thành công!`,
+        videoId: data.video_id // Lưu lại video_id vào state
+      });
       
       // Tự động đóng form upload sau 2 giây khi thành công
       setTimeout(() => {
@@ -343,6 +405,11 @@ export const Uploads = () => {
                     }`}
                   >
                     {uploadStatus.message}
+                    {uploadStatus.videoId && (
+                      <div className="mt-1 text-xs text-blue-400">
+                        Video ID: {uploadStatus.videoId}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

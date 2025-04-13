@@ -1,15 +1,52 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
+import useAuthStore from "@/store/use-auth-store";
+
+// Hàm phân tích nội dung SRT
+const parseSRT = (srtContent: string) => {
+  const subtitles = [];
+  const blocks = srtContent.trim().split(/\n\s*\n/);
+  
+  blocks.forEach(block => {
+    const lines = block.trim().split('\n');
+    if (lines.length >= 3) {
+      const id = parseInt(lines[0].trim());
+      const timeMatch = lines[1].match(/(\d+:\d+:\d+,\d+)\s*-->\s*(\d+:\d+:\d+,\d+)/);
+      if (timeMatch) {
+        const startTime = timeMatch[1];
+        const endTime = timeMatch[2];
+        const originalText = lines.slice(2).join('\n');
+        
+        subtitles.push({
+          id,
+          startTime,
+          endTime,
+          original: originalText,
+          translated: '' // Ban đầu để trống
+        });
+      }
+    }
+  });
+  
+  return subtitles;
+};
+
+// Lấy video ID từ localStorage
+const getVideoId = (): string | null => {
+  return localStorage.getItem('current_video_id');
+};
 
 interface Subtitle {
   id: number;
   original: string;
   translated: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 interface SubtitleDisplayProps {
-  subtitles: Subtitle[];
-  maxSceneTime: number;
+  subtitles?: Subtitle[];
+  maxSceneTime?: number;
 }
 
 interface ContainerCheckboxState {
@@ -24,18 +61,128 @@ const formatTime = (seconds: number): string => {
   return `${min}:${sec < 10 ? "0" : ""}${sec}s`;
 };
 
-const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles, maxSceneTime }) => {
+const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles: propSubtitles, maxSceneTime = 60 }) => {
+  const { isAuthenticated, accessToken } = useAuthStore();
   const [allLt1State, setAllLt1State] = useState<boolean>(false);
   const [allLt2State, setAllLt2State] = useState<boolean>(false);
   const [allLt3State, setAllLt3State] = useState<boolean>(false);
-
-  const [containerStates, setContainerStates] = useState<Record<number, ContainerCheckboxState>>(
-    () =>
-      subtitles.reduce((acc, cur) => {
+  const [subtitles, setSubtitles] = useState<Subtitle[]>(propSubtitles || []);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+    // Fetch subtitles from API when component is mounted
+  useEffect(() => {
+    // If subtitles are provided through props, use them
+    if (propSubtitles && propSubtitles.length > 0) {
+      setSubtitles(propSubtitles);
+      return;
+    }
+      const fetchSubtitles = async () => {
+      // Sử dụng video ID trực tiếp từ localStorage hoặc ID cố định từ upload gần nhất
+      const videoId = localStorage.getItem('mostRecentVideoId') || "af70979a-716d-4f34-bb3e-1a7a43135a38";
+      
+      console.log("Đang sử dụng video ID:", videoId);
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Kiểm tra xem đã đăng nhập chưa
+        if (!isAuthenticated || !accessToken) {
+          throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập để xem phụ đề.");
+        }
+        
+        // Thử gọi API với accessToken từ useAuthStore
+        console.log("Gọi API phụ đề gốc:", `http://localhost:8000/api/v1/videos/srt/${videoId}/original`);
+        console.log("Token xác thực:", accessToken ? "Đã tìm thấy" : "Không tìm thấy");
+        
+        // Tải phụ đề gốc
+        const originalResponse = await fetch(`http://localhost:8000/api/v1/videos/srt/${videoId}/original`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'text/plain',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+        
+        if (!originalResponse.ok) {
+          throw new Error(`Lỗi khi tải phụ đề gốc: ${originalResponse.status}`);
+        }
+        
+        // Phân tích phụ đề gốc
+        const originalSrtContent = await originalResponse.text();
+        const parsedOriginalSubtitles = parseSRT(originalSrtContent);
+        
+        // Thử tải phụ đề đã dịch
+        console.log("Gọi API phụ đề đã dịch:", `http://localhost:8000/api/v1/videos/srt/${videoId}/translated`);
+        
+        try {
+          const translatedResponse = await fetch(`http://localhost:8000/api/v1/videos/srt/${videoId}/translated`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'text/plain',
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          });
+          
+          if (translatedResponse.ok) {
+            // Nếu phụ đề đã dịch tồn tại, tích hợp vào kết quả
+            const translatedSrtContent = await translatedResponse.text();
+            const parsedTranslatedSubtitles = parseSRT(translatedSrtContent);
+            
+            // Kết hợp phụ đề gốc và đã dịch
+            const combinedSubtitles = parsedOriginalSubtitles.map(original => {
+              // Tìm phụ đề dịch tương ứng dựa trên ID
+              const translatedMatch = parsedTranslatedSubtitles.find(
+                translated => translated.id === original.id
+              );
+              
+              return {
+                ...original,
+                translated: translatedMatch ? translatedMatch.original : ''
+              };
+            });
+            
+            setSubtitles(combinedSubtitles);
+          } else {
+            // Nếu không có phụ đề đã dịch, chỉ sử dụng phụ đề gốc
+            console.log("Không tìm thấy phụ đề đã dịch, chỉ hiển thị phụ đề gốc");
+            setSubtitles(parsedOriginalSubtitles);
+          }
+        } catch (translatedError) {
+          // Nếu có lỗi khi tải phụ đề dịch, vẫn hiển thị phụ đề gốc
+          console.warn("Lỗi khi tải phụ đề đã dịch:", translatedError);
+          setSubtitles(parsedOriginalSubtitles);
+        }
+      } catch (error: any) {
+        console.error("Lỗi khi tải phụ đề:", error);
+        setError(`Không thể tải phụ đề: ${error.message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchSubtitles();
+  }, [propSubtitles]);
+  const [containerStates, setContainerStates] = useState<Record<number, ContainerCheckboxState>>(() => {
+      if (!subtitles.length) return {};
+      
+      return subtitles.reduce((acc, cur) => {
         acc[cur.id] = { lt1: false, lt2: false, lt3: false };
         return acc;
-      }, {} as Record<number, ContainerCheckboxState>)
-  );
+      }, {} as Record<number, ContainerCheckboxState>);
+    });
+  
+  // Update container states when subtitles change
+  useEffect(() => {
+    if (subtitles.length) {
+      setContainerStates(
+        subtitles.reduce((acc, cur) => {
+          acc[cur.id] = { lt1: false, lt2: false, lt3: false };
+          return acc;
+        }, {} as Record<number, ContainerCheckboxState>)
+      );
+    }
+  }, [subtitles]);
 
   const undoAction = () => console.log("Undo action");
   const deleteLine = (id: number) => console.log("Delete line", id);
@@ -192,7 +339,40 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles, maxSceneTi
       />
     </div>
   );
+  // Add loading and error handling UI
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="text-lg text-white mb-4">Đang tải phụ đề...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+        </div>
+      </div>
+    );
+  }  if (error) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="text-lg text-red-500 mb-4">{error}</div>
+          <button 
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => window.location.reload()}
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
+  if (!subtitles || subtitles.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="text-lg text-white">Không có phụ đề nào được tìm thấy.</div>
+      </div>
+    );
+  }
+  
   return (
     <div id="string_edit" className="string-edit-layout" data-delogo="false">
       {/* Phần header cố định */}

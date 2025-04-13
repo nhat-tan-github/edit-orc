@@ -90,12 +90,9 @@ const App = () => {
                 <ControlList />
                 <ControlItem />
             </ResizablePanel>
-            <ResizableHandle />
-            {/* Panel giữa: hiển thị phụ đề sử dụng SubtitleDisplay */}
+            <ResizableHandle />            {/* Panel giữa: hiển thị phụ đề sử dụng SubtitleDisplay */}
             <ResizablePanel defaultSize={20} className="overflow-auto">
-                <SubtitleDisplay
-                    subtitles={subtitles}              
-                />
+                <SubtitleDisplay maxSceneTime={300} />
             </ResizablePanel>
             <ResizableHandle />
             {/* Panel bên phải: Scene chính và timeline bên dưới */}
