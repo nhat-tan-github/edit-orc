@@ -8,6 +8,8 @@ import { VideoIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useIsDraggingOverTimeline } from "../hooks/is-dragging-over-timeline";
 import useAuthStore from "@/store/use-auth-store";
+import useVideoStore from "@/store/use-video-store";
+import useLayoutStore from "../store/use-layout-store";
 
 interface VideoItem {
   video_id: string;
@@ -57,16 +59,30 @@ const formatDate = (dateString: string) => {
   return date.toLocaleString('vi-VN', options);
 };
 
-export const Videos = () => {  const [videos, setVideos] = useState<VideoItem[]>([]);
+export const Videos = () => {  
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isDraggingOverTimeline = useIsDraggingOverTimeline();
   const { accessToken } = useAuthStore();
+  const { setSelectedVideoId } = useVideoStore();
+  const { setShowMenuItem, setActiveMenuItem } = useLayoutStore();
 
   useEffect(() => {
     const fetchVideos = async () => {
       try {
         setLoading(true);
+        
+        // Kiểm tra xem có token không
+        if (!accessToken) {
+          console.log('Không có token xác thực, không thể tải danh sách video');
+          setError('Vui lòng đăng nhập để xem danh sách video');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Đang gọi API với token:', accessToken ? 'Đã tìm thấy token' : 'Không có token');
+        
         const response = await fetch('http://localhost:8000/api/v1/videos/', {
           method: 'GET',
           headers: {
@@ -77,6 +93,12 @@ export const Videos = () => {  const [videos, setVideos] = useState<VideoItem[]>
         });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            console.error('Token không hợp lệ hoặc đã hết hạn');
+            setError('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
+            // Có thể thêm logic để đăng xuất người dùng ở đây
+            return;
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -97,9 +119,13 @@ export const Videos = () => {  const [videos, setVideos] = useState<VideoItem[]>
     };
 
     fetchVideos();
-  }, []);
+  }, [accessToken]); // Thêm accessToken vào dependency array để fetch lại khi token thay đổi
 
   const handleAddVideo = (video: VideoItem) => {
+    // Save the selected video ID to the store and localStorage
+    setSelectedVideoId(video.video_id);
+    console.log("Selected video ID:", video.video_id);
+    
     const payload: Partial<IVideo> = {
       type: "video",
       details: {
@@ -123,6 +149,12 @@ export const Videos = () => {  const [videos, setVideos] = useState<VideoItem[]>
         id: payload.id,
       },
     });
+    
+    // Đóng menu videos sau khi chọn video
+    setShowMenuItem(false);
+    setActiveMenuItem(null);
+    
+    console.log("Đã đóng menu videos sau khi chọn video:", video.file_name);
   };
 
   if (loading) {
@@ -139,13 +171,30 @@ export const Videos = () => {  const [videos, setVideos] = useState<VideoItem[]>
   }
 
   if (error) {
+    // Kiểm tra nếu lỗi liên quan đến đăng nhập
+    const isAuthError = error.includes("đăng nhập") || 
+                        error.includes("Phiên") || 
+                        error.includes("401") ||
+                        error.includes("Unauthorized");
+    
     return (
       <div className="flex flex-1 flex-col">
         <div className="text-text-primary flex h-12 flex-none items-center px-4 text-sm font-medium">
           Videos
         </div>
-        <div className="flex h-32 items-center justify-center text-red-400">
-          Error: {error}
+        <div className="flex flex-col h-32 items-center justify-center gap-2">
+          <div className="text-red-400">
+            {error}
+          </div>
+          
+          {isAuthError && (
+            <button 
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+              onClick={() => window.location.href = '/auth'}
+            >
+              Đăng nhập lại
+            </button>
+          )}
         </div>
       </div>
     );

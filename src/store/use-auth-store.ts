@@ -26,11 +26,27 @@ interface AuthStore {
   signinWithGithub: () => Promise<any>;
 }
 
+// Hàm kiểm tra token có hợp lệ không (kiểm tra cơ bản)
+const isValidToken = (token: string | null): boolean => {
+  return !!token && typeof token === 'string' && token.startsWith('eyJ');
+};
+
+// Lấy token từ localStorage và kiểm tra tính hợp lệ
+const storedToken = localStorage.getItem('access_token');
+const validToken = isValidToken(storedToken) ? storedToken : null;
+
+// Nếu token không hợp lệ, xóa khỏi localStorage
+if (storedToken && !validToken) {
+  console.log('Token không hợp lệ, xóa khỏi localStorage');
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('username');
+}
+
 const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
-  username: localStorage.getItem('username'),
-  accessToken: localStorage.getItem('access_token'),
-  isAuthenticated: !!localStorage.getItem('access_token'),
+  username: validToken ? localStorage.getItem('username') : null,
+  accessToken: validToken,
+  isAuthenticated: !!validToken,
   setUser: (user) => set({ user }),
 
   // Đăng nhập với API của bạn
@@ -56,11 +72,14 @@ const useAuthStore = create<AuthStore>((set, get) => ({
         const tokenString = await response.json();
         console.log('Response data (token):', tokenString);
 
-        if (tokenString && typeof tokenString === 'string' && tokenString.startsWith('eyJ')) {
+        if (isValidToken(tokenString)) {
           console.log('Đăng nhập thành công, lưu token');
+          
+          // Lưu token vào localStorage
           localStorage.setItem('access_token', tokenString);
           localStorage.setItem('username', credentials.username);
           
+          // Cập nhật state
           set({ 
             accessToken: tokenString,
             isAuthenticated: true,
@@ -68,7 +87,10 @@ const useAuthStore = create<AuthStore>((set, get) => ({
             user: { id: '1', email: credentials.username, avatar: '', username: credentials.username, provider: 'github' }
           });
 
+          console.log('Token đã được lưu:', tokenString);
           console.log('Chuyển hướng sau đăng nhập thành công');
+          
+          // Chuyển hướng sau khi đăng nhập thành công
           window.location.href = '/';
           
           return { access_token: tokenString };
@@ -111,22 +133,46 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       if (token) {
         // Gọi API đăng xuất
         console.log('Gửi yêu cầu đăng xuất đến server');
-        await fetch('http://localhost:8000/api/v1/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          credentials: 'include',
-        });
+        try {
+          const response = await fetch('http://localhost:8000/api/v1/auth/logout', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+          });
+          
+          if (response.ok) {
+            console.log('Đăng xuất thành công trên server');
+          } else {
+            console.warn('Đăng xuất trên server không thành công:', response.status);
+          }
+        } catch (apiError) {
+          console.warn('Lỗi khi gọi API đăng xuất:', apiError);
+          // Tiếp tục đăng xuất cục bộ ngay cả khi API thất bại
+        }
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       // Xóa token và username, reset trạng thái đăng nhập
       console.log('Xóa thông tin đăng nhập khỏi localStorage');
+      
+      // Xóa tất cả các thông tin liên quan đến phiên đăng nhập
       localStorage.removeItem('access_token');
       localStorage.removeItem('username');
-      set({ user: null, isAuthenticated: false, accessToken: null, username: null });
+      localStorage.removeItem('selectedVideoId');
+      localStorage.removeItem('mostRecentVideoId');
+      
+      // Reset state
+      set({ 
+        user: null, 
+        isAuthenticated: false, 
+        accessToken: null, 
+        username: null 
+      });
+      
       // Reload trang sau khi đăng xuất
       console.log('Chuyển hướng sau đăng xuất');
       window.location.href = '/';

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import useAuthStore from "@/store/use-auth-store";
+import useVideoStore from "@/store/use-video-store";
 
 // Hàm phân tích nội dung SRT
 const parseSRT = (srtContent: string) => {
@@ -63,6 +64,7 @@ const formatTime = (seconds: number): string => {
 
 const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles: propSubtitles, maxSceneTime = 60 }) => {
   const { isAuthenticated, accessToken } = useAuthStore();
+  const { selectedVideoId } = useVideoStore();
   const [allLt1State, setAllLt1State] = useState<boolean>(false);
   const [allLt2State, setAllLt2State] = useState<boolean>(false);
   const [allLt3State, setAllLt3State] = useState<boolean>(false);
@@ -77,8 +79,16 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles: propSubtit
       return;
     }
       const fetchSubtitles = async () => {
-      // Sử dụng video ID trực tiếp từ localStorage hoặc ID cố định từ upload gần nhất
-      const videoId = localStorage.getItem('mostRecentVideoId') || "af70979a-716d-4f34-bb3e-1a7a43135a38";
+      // Sử dụng video ID từ store, fallback to localStorage
+      const videoId = selectedVideoId || 
+                     localStorage.getItem('mostRecentVideoId') || 
+                     localStorage.getItem('selectedVideoId');
+      
+      if (!videoId) {
+        setError("Không tìm thấy ID video. Vui lòng chọn một video từ danh sách.");
+        setIsLoading(false);
+        return;
+      }
       
       console.log("Đang sử dụng video ID:", videoId);
       
@@ -94,18 +104,26 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles: propSubtit
         // Thử gọi API với accessToken từ useAuthStore
         console.log("Gọi API phụ đề gốc:", `http://localhost:8000/api/v1/videos/srt/${videoId}/original`);
         console.log("Token xác thực:", accessToken ? "Đã tìm thấy" : "Không tìm thấy");
+        console.log("Token value:", accessToken);
         
         // Tải phụ đề gốc
         const originalResponse = await fetch(`http://localhost:8000/api/v1/videos/srt/${videoId}/original`, {
           method: 'GET',
           headers: {
             'Content-Type': 'text/plain',
+            'Accept': 'text/plain, */*',
             'Authorization': `Bearer ${accessToken}`,
           },
         });
         
         if (!originalResponse.ok) {
-          throw new Error(`Lỗi khi tải phụ đề gốc: ${originalResponse.status}`);
+          if (originalResponse.status === 401) {
+            throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          } else if (originalResponse.status === 404) {
+            throw new Error("Không tìm thấy phụ đề cho video này.");
+          } else {
+            throw new Error(`Lỗi khi tải phụ đề gốc: ${originalResponse.status}`);
+          }
         }
         
         // Phân tích phụ đề gốc
@@ -162,7 +180,7 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles: propSubtit
     };
     
     fetchSubtitles();
-  }, [propSubtitles]);
+  }, [propSubtitles, selectedVideoId, accessToken, isAuthenticated]);
   const [containerStates, setContainerStates] = useState<Record<number, ContainerCheckboxState>>(() => {
       if (!subtitles.length) return {};
       
@@ -350,16 +368,33 @@ const SubtitleDisplay: React.FC<SubtitleDisplayProps> = ({ subtitles: propSubtit
       </div>
     );
   }  if (error) {
+    // Kiểm tra nếu lỗi liên quan đến đăng nhập
+    const isAuthError = error.includes("đăng nhập") || 
+                        error.includes("Phiên") || 
+                        error.includes("401");
+    
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="flex flex-col items-center">
           <div className="text-lg text-red-500 mb-4">{error}</div>
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            onClick={() => window.location.reload()}
-          >
-            Thử lại
-          </button>
+          
+          {isAuthError ? (
+            // Hiển thị nút đăng nhập lại nếu lỗi liên quan đến xác thực
+            <button 
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={() => window.location.href = '/auth'}
+            >
+              Đăng nhập lại
+            </button>
+          ) : (
+            // Hiển thị nút thử lại cho các lỗi khác
+            <button 
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={() => window.location.reload()}
+            >
+              Thử lại
+            </button>
+          )}
         </div>
       </div>
     );
