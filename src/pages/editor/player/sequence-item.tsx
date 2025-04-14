@@ -21,6 +21,10 @@ import {
   calculateTextStyles,
 } from "./styles";
 import { getAnimations } from "../utils/get-animations";
+import useVideoStore from "@/store/use-video-store";
+import { useFetchVideo } from "@/hooks/use-fetch-video";
+import { useAuthenticatedVideo } from "@/hooks/use-authenticated-video";
+import useAuthStore from "@/store/use-auth-store";
 
 interface SequenceItemOptions {
   handleTextChange?: (id: string, text: string) => void;
@@ -242,6 +246,28 @@ export const SequenceItem: Record<
       height: item.details.height,
     };
 
+    // Get the selected video ID from the store
+    const { selectedVideoId } = useVideoStore();
+    
+    // Use our custom hook to fetch the video data
+    const { videoData } = useFetchVideo(selectedVideoId);
+    
+    // Use our authenticated video hook to get a blob URL for the video
+    const { blobUrl, loading, error } = useAuthenticatedVideo(selectedVideoId);
+
+    // Determine the video source to use
+    let videoSrc = details.src;
+    
+    // Sử dụng blob URL nếu có
+    if (blobUrl) {
+      videoSrc = blobUrl;
+      console.log(`Using blob URL for video: ${selectedVideoId}`);
+    }
+    // Fallback to default source if no blob URL
+    else {
+      console.log(`Using default video source: ${videoSrc}`);
+    }
+
     return (
       <Sequence
         key={item.id}
@@ -264,13 +290,65 @@ export const SequenceItem: Record<
             durationInFrames={durationInFrames}
           >
             <div style={calculateMediaStyles(details, crop)}>
-              <OffthreadVideo
-                startFrom={(item.trim?.from! / 1000) * fps}
-                endAt={(item.trim?.to! / 1000) * fps}
-                playbackRate={playbackRate}
-                src={details.src}
-                volume={details.volume || 0 / 100}
-              />
+              {loading ? (
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  width: '100%', 
+                  height: '100%', 
+                  backgroundColor: '#000',
+                  color: '#fff',
+                  fontSize: '16px'
+                }}>
+                  Loading video...
+                </div>
+              ) : error ? (
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  width: '100%', 
+                  height: '100%', 
+                  backgroundColor: '#000',
+                  color: 'red',
+                  fontSize: '14px',
+                  padding: '20px',
+                  textAlign: 'center'
+                }}>
+                  <div>Error loading video:</div>
+                  <div style={{ marginTop: '10px', wordBreak: 'break-word' }}>{error}</div>
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: '#aaa' }}>
+                    Using fallback video source
+                  </div>
+                  <OffthreadVideo
+                    startFrom={(item.trim?.from! / 1000) * fps}
+                    endAt={(item.trim?.to! / 1000) * fps}
+                    playbackRate={playbackRate}
+                    src={details.src}
+                    volume={details.volume || 0 / 100}
+                  />
+                </div>
+              ) : (
+                blobUrl ? (
+                  <OffthreadVideo
+                    startFrom={(item.trim?.from! / 1000) * fps}
+                    endAt={(item.trim?.to! / 1000) * fps}
+                    playbackRate={playbackRate}
+                    src={blobUrl}
+                    volume={details.volume || 0 / 100}
+                  />
+                ) : (
+                  <OffthreadVideo
+                    startFrom={(item.trim?.from! / 1000) * fps}
+                    endAt={(item.trim?.to! / 1000) * fps}
+                    playbackRate={playbackRate}
+                    src={videoSrc}
+                    volume={details.volume || 0 / 100}
+                  />
+                )
+              )}
             </div>
           </Animated>
         </AbsoluteFill>
